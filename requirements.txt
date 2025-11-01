@@ -1,0 +1,24 @@
+# FastAPI and web framework dependencies
+fastapi>=0.100.0,<0.105.0
+uvicorn[standard]>=0.20.0,<0.25.0
+python-multipart>=0.0.6
+
+# Database dependencies
+sqlalchemy>=2.0.0,<2.1.0
+pymysql>=1.0.0,<2.0.0
+
+# Data processing (use compatible versions with pre-built wheels)
+pandas>=2.0.0,<2.2.0
+numpy>=1.24.0,<1.26.0
+
+# HTTP client
+httpx>=0.24.0,<0.26.0
+
+# Email validation
+email-validator>=2.0.0
+
+# Environment and configuration
+python-dotenv>=1.0.0
+
+# File handling
+openpyxl>=3.0.0
