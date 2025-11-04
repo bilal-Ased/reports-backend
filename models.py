@@ -31,30 +31,42 @@ class Company(Base):
 # -------------------------------
 # Company Users
 # -------------------------------
+# === USER (global login) ===
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'), onupdate=text('CURRENT_TIMESTAMP'))
+
+    # Relationship: one user → many company memberships
+    company_memberships = relationship("CompanyUser", back_populates="user", cascade="all, delete-orphan")
+
+
+# === COMPANY USER (membership + role) ===
 class CompanyUser(Base):
     __tablename__ = "company_users"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
-    email = Column(String(255), nullable=False, index=True)
-    name = Column(String(255), nullable=True)
-    role = Column(String(100), nullable=True)
+    role = Column(String(100), default="member")  # admin, member, viewer
     receive_reports = Column(Boolean, default=True)
-    is_active = Column(Boolean, default=True, index=True)
+    is_active = Column(Boolean, default=True)
 
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=text('CURRENT_TIMESTAMP'),
-        nullable=False
-    )
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=text('CURRENT_TIMESTAMP'),
-        onupdate=text('CURRENT_TIMESTAMP'),
-        nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = Column(DateTime(timezone=True), server_default=text('CURRENT_TIMESTAMP'), onupdate=text('CURRENT_TIMESTAMP'))
 
+    # Relationships
+    user = relationship("User", back_populates="company_memberships")
     company = relationship("Company", back_populates="users")
+
+    class Config:
+        from_attributes = True
 
 
 # -------------------------------

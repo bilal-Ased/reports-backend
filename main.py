@@ -8,6 +8,7 @@ from email.message import EmailMessage
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from contextlib import asynccontextmanager
+from zoneinfo import ZoneInfo
 import httpx
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Header, Security
@@ -507,7 +508,7 @@ async def test_scheduler():
     return {"status": "Schedules reloaded", "message": "All active schedules have been reloaded"}
 
 # ============================
-# PROCESSING LOGIC (unchanged)
+# PROCESSING LOGIC
 # ============================
 async def process_tickets(req_id: int, company: Company, req_data: TicketRequestCreate):
     db = next(get_database_session())
@@ -576,12 +577,13 @@ async def process_tickets(req_id: int, company: Company, req_data: TicketRequest
                     email = email.strip()
                     if email:
                         subject = f"Tickets Report - {company.name}"
+                        eat_time = datetime.now(ZoneInfo('Africa/Nairobi'))
                         body = (
                             f"Report for {company.name}\n\n"
                             f"Date Range: {req_data.date_start} to {req_data.date_end or 'present'}\n"
                             f"Total Tickets: {len(df):,}\n"
                             f"Processing Time: {int(time.time() - start_time)}s\n"
-                            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                            f"Generated: {eat_time.strftime('%Y-%m-%d %H:%M:%S')} EAT\n\n"
                             f"Please find the attached CSV report."
                         )
                         await send_email(email, subject, body, file_path, req_id)
