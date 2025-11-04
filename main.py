@@ -39,6 +39,7 @@ class Config:
     API_TIMEOUT = int(os.getenv("API_TIMEOUT", "60"))
     RESPONSE_TRUNCATE = int(os.getenv("RESPONSE_TRUNCATE_LENGTH", "10000"))
     BEARER_TOKEN = os.getenv("BEARER_TOKEN")
+    SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 
 cfg = Config()
 os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
