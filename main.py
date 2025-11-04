@@ -39,7 +39,7 @@ class Config:
     API_TIMEOUT = int(os.getenv("API_TIMEOUT", "60"))
     RESPONSE_TRUNCATE = int(os.getenv("RESPONSE_TRUNCATE_LENGTH", "10000"))
     BEARER_TOKEN = os.getenv("BEARER_TOKEN")
-    SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+    SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 
 cfg = Config()
 os.makedirs(cfg.UPLOAD_DIR, exist_ok=True)
@@ -141,6 +141,105 @@ def _extract_date_formatted(date_str: str) -> str:
     return datetime.now().strftime('%Y-%m-%d')
 
 # ============================
+# SLACK NOTIFICATIONS
+# ============================
+async def send_slack_notification(message: str, level: str = "info"):
+    """Send notification to Slack webhook"""
+    if not cfg.SLACK_WEBHOOK_URL:
+        logger.warning("Slack webhook URL not configured")
+        return
+    
+    try:
+        # Color coding based on level
+        colors = {
+            "info": "#36a64f",      # Green
+            "warning": "#ff9900",   # Orange
+            "error": "#ff0000",     # Red
+            "success": "#00ff00"    # Bright green
+        }
+        
+        color = colors.get(level, "#36a64f")
+        eat_time = datetime.now(ZoneInfo('Africa/Nairobi')).strftime('%Y-%m-%d %H:%M:%S')
+        
+        payload = {
+            "attachments": [{
+                "color": color,
+                "text": message,
+                "footer": f"KatiCRM Ticket System | {eat_time} EAT",
+                "ts": int(time.time())
+            }]
+        }
+        
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(cfg.SLACK_WEBHOOK_URL, json=payload)
+            if response.status_code == 200:
+                logger.info(f"Slack notification sent: {level}")
+            else:
+                logger.error(f"Slack notification failed: {response.status_code} - {response.text}")
+    except Exception as e:
+        logger.error(f"Failed to send Slack notification: {e}")
+
+async def send_slack_report_summary(company_name: str, tickets_count: int, date_start: str, date_end: str, processing_time: int, recipients: str):
+    """Send formatted report summary to Slack"""
+    message = (
+        f"*📊 Report Generated*\n"
+        f"*Company:* {company_name}\n"
+        f"*Date Range:* {date_start} to {date_end}\n"
+        f"*Total Tickets:* {tickets_count:,}\n"
+        f"*Processing Time:* {processing_time}s\n"
+        f"*Recipients:* {recipients}"
+    )
+    await send_slack_notification(message, "success")
+
+# ============================
+# SLACK NOTIFICATIONS
+# ============================
+async def send_slack_notification(message: str, level: str = "info"):
+    """Send notification to Slack webhook"""
+    if not cfg.SLACK_WEBHOOK_URL:
+        return
+    
+    try:
+        # Color coding based on level
+        colors = {
+            "info": "#36a64f",      # Green
+            "warning": "#ff9900",   # Orange
+            "error": "#ff0000",     # Red
+            "success": "#00ff00"    # Bright green
+        }
+        
+        color = colors.get(level, "#36a64f")
+        eat_time = datetime.now(ZoneInfo('Africa/Nairobi')).strftime('%Y-%m-%d %H:%M:%S')
+        
+        payload = {
+            "attachments": [{
+                "color": color,
+                "text": message,
+                "footer": "KatiCRM Ticket System",
+                "ts": int(time.time()),
+                "footer_icon": "https://platform.slack-edge.com/img/default_application_icon.png"
+            }]
+        }
+        
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(cfg.SLACK_WEBHOOK_URL, json=payload)
+            logger.info(f"Slack notification sent: {level}")
+    except Exception as e:
+        logger.error(f"Failed to send Slack notification: {e}")
+
+async def send_slack_report_summary(company_name: str, tickets_count: int, date_start: str, date_end: str, processing_time: int, recipients: str):
+    """Send formatted report summary to Slack"""
+    message = (
+        f"*📊 Report Generated*\n"
+        f"*Company:* {company_name}\n"
+        f"*Date Range:* {date_start} to {date_end}\n"
+        f"*Total Tickets:* {tickets_count:,}\n"
+        f"*Processing Time:* {processing_time}s\n"
+        f"*Sent To:* {recipients}\n"
+    )
+    await send_slack_notification(message, "success")
+
+# ============================
 # EMAIL
 # ============================
 async def send_email(to: str, subject: str, body: str, file_path: str, req_id: int):
@@ -188,9 +287,11 @@ async def init_data():
             ])
             logger.info("Created system config")
         db.commit()
+        await send_slack_notification("✅ KatiCRM Ticket System started successfully", "success")
     except Exception as e:
         logger.error(f"Init error: {e}")
         db.rollback()
+        await send_slack_notification(f"❌ Initialization error: {str(e)}", "error")
     finally:
         db.close()
 
@@ -223,6 +324,9 @@ async def run_scheduled_report(schedule_id: int):
         s = db.query(ReportSchedule).filter(ReportSchedule.id == schedule_id).first()
         if not s or not s.is_active:
             return
+        
+        await send_slack_notification(f"📅 Starting scheduled report for {s.company.name}", "info")
+        
         today = datetime.now()
         if s.report_type == "monthly":
             month_end = today.replace(day=1) - timedelta(days=1)
@@ -259,6 +363,7 @@ async def run_scheduled_report(schedule_id: int):
         await process_tickets(r.id, s.company, req)
     except Exception as e:
         logger.error(f"Scheduled report {schedule_id} failed: {e}")
+        await send_slack_notification(f"❌ Scheduled report failed for schedule {schedule_id}: {str(e)}", "error")
     finally:
         db.close()
 
@@ -501,6 +606,7 @@ async def fetch_tickets(req: TicketRequestCreate, bg: BackgroundTasks, db: Sessi
     db.refresh(r)
     bg.add_task(process_tickets, r.id, c, req)
     logger.info(f"Created request {r.id} for {c.name}")
+    await send_slack_notification(f"🎫 New ticket request created for *{c.name}* (Request ID: {r.id})", "info")
     return r
 
 @app.get("/test-scheduler", dependencies=[Depends(verify_token)])
@@ -588,9 +694,21 @@ async def process_tickets(req_id: int, company: Company, req_data: TicketRequest
                             f"Please find the attached CSV report."
                         )
                         await send_email(email, subject, body, file_path, req_id)
+            
+            # Send Slack summary
+            await send_slack_report_summary(
+                company.name, 
+                len(df), 
+                req_data.date_start, 
+                req_data.date_end or 'present',
+                int(time.time() - start_time),
+                req_data.email_to or "No recipients"
+            )
+            
             logger.info(f"Completed {len(df)} tickets for {company.name} in {int(time.time() - start_time)}s")
     except Exception as e:
         logger.error(f"Error processing request {req_id}: {e}", exc_info=True)
+        await send_slack_notification(f"❌ Error processing request {req_id} for {company.name}: {str(e)}", "error")
         r = db.query(TicketRequest).filter(TicketRequest.id == req_id).first()
         if r:
             r.status = "failed"
