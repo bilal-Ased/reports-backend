@@ -443,6 +443,8 @@ async def list_companies(active: bool = True, db: Session = Depends(get_database
     q = db.query(Company)
     if active:
         q = q.filter(Company.is_active == True)
+    return q.all()
+
     return q.order_by(Company.name).all()
 
 @app.get("/companies/{id}", response_model=CompanyResponse, dependencies=[Depends(verify_token)])

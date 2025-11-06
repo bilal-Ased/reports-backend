@@ -1,6 +1,6 @@
 import pytest 
 from app.main import to_unix_ms, parse_cron, format_age, convert_timestamp
-
+from fastapi import HTTPException
 def test_to_unix_ms_valid():
     ts = to_unix_ms("2025-01-01 12:00:00")
     assert isinstance(ts,int)
@@ -8,7 +8,7 @@ def test_to_unix_ms_valid():
     
     
 def test_to_unix_ms_invalid():
-    with pytest.raisers(ValueError):
+    with pytest.raises(HTTPException):
      to_unix_ms("random date")
      
 def test_prase_cron_valid():
