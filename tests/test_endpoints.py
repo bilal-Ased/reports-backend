@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app, cfg
+from main import app, cfg
 
 client = TestClient(app)
 
@@ -42,3 +42,6 @@ def test_payload_valid(token_header):
     assert res.status_code == 200
     data = res.json()
     assert "payload" in data
+
+
+

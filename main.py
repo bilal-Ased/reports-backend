@@ -26,6 +26,8 @@ from schemas import *
 
 load_dotenv()
 
+
+
 # ============================
 # CONFIGURATION
 # ============================
@@ -748,3 +750,8 @@ async def get_request_logs(request_id: int, db: Session = Depends(get_database_s
     request_logs = db.query(RequestLog).filter(RequestLog.ticket_request_id == request_id).all()
     email_logs = db.query(EmailLog).filter(EmailLog.ticket_request_id == request_id).all()
     return {"request": r, "api_logs": request_logs, "email_logs": email_logs}
+
+
+@app.get("/")
+def read_root():
+       return {"message": "Welcome to the KatiCRM Ticket System API"}
