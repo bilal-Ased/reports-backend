@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 # DATABASE CONFIG
 # ----------------------------------------------------
 # change these values to your real postgres credentials
-DATABASE_URL = "postgresql+psycopg://koyeb-adm:npg_Kv3jR5phErgG@ep-still-fog-a2h2urki.eu-central-1.pg.koyeb.app/koyebdb"
+DATABASE_URL = "postgresql://myuser:mypassword@reports_db:5432/reports"
 
 
 engine = create_engine(
